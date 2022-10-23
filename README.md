@@ -1,6 +1,8 @@
 GPU Programming Final Project
 
+
 N-Body Gravitational Simulation
+
 
 Authors:
 
