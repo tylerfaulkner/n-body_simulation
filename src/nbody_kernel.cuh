@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define EPS2 0.5 //dampening factor in textbook
+#define TILE_WIDTH 32
+
+
 __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 {
     float3 r;
@@ -25,16 +29,16 @@ __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 __device__ float3 tile_calculation(float4 myPosition, float3 accel)
 {
     int i;
-    extern __shared__ float4[] shPosition;
+    extern __shared__ float4 shPosition[];
     for (i = 0; i < blockDim.x; i++) {
         accel = bodyBodyInteraction(myPosition, shPosition[i], accel); 
     }
     return accel;
 }
 
-__global__ void calculate_forces(void *devX, void *devA)
+__global__ void calculate_forces(void *devX, void *devA, int n)
 {
-    extern __shared__ float4[] shPosition;
+    extern __shared__ float4 shPosition[];
     float4 *globalX = (float4 *)devX;
     float4 *globalA = (float4 *)devA;
     float4 myPosition;
@@ -43,7 +47,7 @@ __global__ void calculate_forces(void *devX, void *devA)
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
     myPosition = globalX[gtid];
     //Tiling
-    for (i = 0, tile = 0; i < N; i += p, tile++) {
+    for (i = 0, tile = 0; i < n; i += TILE_WIDTH, tile++) {
         int idx = tile * blockDim.x + threadIdx.x;
         shPosition[threadIdx.x] = globalX[idx];
         __syncthreads();
