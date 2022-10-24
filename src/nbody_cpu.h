@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define EPS2 0.5
+#define EPS2 0.5 //dampening factor in textbook
 
-float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
+float3 bodyBodyInteraction_cpu(float4 bi, float4 bj, float3 ai)
 {
     float3 r;
     // r_ij [3 FLOPS]
@@ -28,12 +28,12 @@ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 void calculate_forces(float4 *h_X, float4 *h_A, int bodyCount)
 {
     float4 myPosition;
-    int i, tile;
+    int i;
     float3 acc = {0.0f, 0.0f, 0.0f};
     for(int currentBody=0; currentBody<bodyCount; currentBody++){
         myPosition = h_X[currentBody];
         for (i = 0; i < bodyCount; i++) {
-            acc = bodyBodyInteraction(myPosition, h_X[i], acc);
+            acc = bodyBodyInteraction_cpu(myPosition, h_X[i], acc);
         }
         float4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
         h_A[currentBody] = acc4;
