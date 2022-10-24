@@ -2,3 +2,4 @@ src/CMakeFiles
 src/cmake_install.cmake
 src/CMakeCache.txt
 src/Makefile
+src/n-body_simulation
