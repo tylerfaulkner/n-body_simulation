@@ -52,7 +52,9 @@ int main(int argc, char* argv[]) {
 
     for(int step=0; step<k; step++){
         calculate_forces(h_X, h_A, n);
-        //calculate new positions
+        //calculate new positions (0.5 is the change in time. We are doing 1/2 a second for each step.)
+        calculate_velocity(h_A, h_V, n, 0.5)
+        calculate_position(h_X, h_V, n, 0.5)
         //output positions to csv file
     }
 }
