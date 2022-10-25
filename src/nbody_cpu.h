@@ -40,3 +40,25 @@ void calculate_forces(float4 *h_X, float4 *h_A, int bodyCount)
     }
 }
 
+void calculate_velocity(float4 *h_A, float4 *h_V, int bodyCount, float time)
+{
+    float3 vel = {0.0f, 0.0f, 0.0f};
+    for(int currentBody=0; currentBody<bodyCount; currentBody++){ 
+        vel.x = h_V.x + h_A.x * time;
+        vel.y = h_V.y + h_A.y * time;
+        vel.z = h_V.z + h_A.z * time;
+        float4 vel4 = {vel.x, vel.y, vel.z, 0.0f};
+        h_V[currentBody] = vel4;
+    }
+}
+
+void calculate_position(float4 *h_X, float4 *h_V, int bodyCount, float time)
+{
+    float4 pos = {0.0f, 0.0f, 0.0f, 0.0f};
+    for(int currentBody=0; currentBody<bodyCount; currentBody++){
+        pos.x = h_X.x + h_V.x * time;
+        pos.y = h_X.y + h_V.y * time;
+        pos.z = h_X.z + h_V.z * time;
+        h_X[currentBody] = pos;
+    }
+}
