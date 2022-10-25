@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define EPS2 0.1 //dampening factor in textbook
+#define EPS2 0.01 //dampening factor in textbook
 #define TILE_WIDTH 32
 
 

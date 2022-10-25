@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define EPS2 0.1 //dampening factor in textbook
+#define EPS2 0.01 //EPSILON SQUARED dampening factor in textbook
 
 double3 bodyBodyInteraction_cpu(double4 bi, double4 bj, double3 ai)
 {
@@ -52,7 +52,7 @@ void calculate_velocity(double4 *h_A, double4 *h_V, int bodyCount, double time)
         vel.y = h_V[currentBody].y + h_A[currentBody].y * time;
         vel.z = h_V[currentBody].z + h_A[currentBody].z * time;
         double4 vel4 = {vel.x, vel.y, vel.z, 0.0f};
-        printf("Verifying Velocity of body (%d):\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", currentBody, vel4.x,vel4.y,vel4.z,vel4.w);
+        //printf("Verifying Velocity of body (%d):\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", currentBody, vel4.x,vel4.y,vel4.z,vel4.w);
         h_V[currentBody] = vel4;
     }
 }
