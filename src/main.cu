@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
-#define TIME_STEP 0.5
+#define TIME_STEP 0.25
 #define RESULTS_FOLDER "results"
 
 //handle error macro 
@@ -23,7 +23,7 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
     mkdir(RESULTS_FOLDER, 0777);
     FILE *fp;
     char filename[30];
-    sprintf(filename, "%s/%f.csv", RESULTS_FOLDER, time);
+    sprintf(filename, "%s/%#.1f.csv", RESULTS_FOLDER, time);
     fp = fopen(filename, "w");
     if (fp==NULL){
         printf("Write Error occured");
@@ -72,6 +72,9 @@ int main(int argc, char* argv[]) {
     printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
 
     for(int step=0; step<k; step++){
+        if(step % 10 == 0){
+            printf("Executing Step %d out of %d\n", step, k);
+        }
         calculate_forces(h_X, h_A, n);
         //calculate new positions (0.5 is the change in time. We are doing 1/2 a second for each step.)
         calculate_velocity(h_A, h_V, n, TIME_STEP);
