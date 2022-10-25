@@ -23,7 +23,7 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
     mkdir(RESULTS_FOLDER, 0777);
     FILE *fp;
     char filename[30];
-    sprintf(filename, "%s/%#.1f.csv", RESULTS_FOLDER, time);
+    sprintf(filename, "%s/%#.2f.csv", RESULTS_FOLDER, time);
     fp = fopen(filename, "w");
     if (fp==NULL){
         printf("Write Error occured");
