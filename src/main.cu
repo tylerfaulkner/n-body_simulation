@@ -27,19 +27,23 @@ int main(int argc, char* argv[]) {
     int n = atoi(argv[1]);
     int k = atoi(argv[2]);
 
-    float4 *d_A, *d_X, *h_X, *h_A;
+    float4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
 
     size_t size = k*sizeof(float4);
 
     HANDLE_ERROR(cudaMalloc((void **)&d_X, size));
     HANDLE_ERROR(cudaMalloc((void **)&d_A, size));
+    HANDLE_ERROR(cudaMalloc((void **)&d_V, size));
 
     HANDLE_ERROR(cudaMemset(d_A, 0, size));
+    HANDLE_ERROR(cudaMemset(d_V, 0, size));
 
     h_X = (float4 *)malloc(size);
     h_A = (float4 *)malloc(size);
+    h_V = (float4 *)malloc(size);
     memset(h_A, 0, size);
-
+    memset(h_V, 0, size);
+       
     printf("Randomizing Body Start Positions...\n");
     srand(time(0));
     initializeBodies(h_X, n);
