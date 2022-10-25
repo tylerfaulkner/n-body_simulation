@@ -5,7 +5,8 @@
 #include "nbody_cpu.h"
 #include "nbody_init.cuh"
 
-#define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ )) 
+#define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
+#define TIME_STEP 0.5
 
 //handle error macro 
 static void HandleError(cudaError_t err, const char *file,  int line ) { 
@@ -53,8 +54,8 @@ int main(int argc, char* argv[]) {
     for(int step=0; step<k; step++){
         calculate_forces(h_X, h_A, n);
         //calculate new positions (0.5 is the change in time. We are doing 1/2 a second for each step.)
-        calculate_velocity(h_A, h_V, n, 0.5)
-        calculate_position(h_X, h_V, n, 0.5)
+        calculate_velocity(h_A, h_V, n, TIME_STEP);
+        calculate_position(h_X, h_V, n, TIME_STEP);
         //output positions to csv file
     }
 }
