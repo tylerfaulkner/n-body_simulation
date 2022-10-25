@@ -19,7 +19,7 @@ static void HandleError(cudaError_t err, const char *file,  int line ) {
         } 
 } 
 
-void outputToFile(float4 *h_X, int bodyCount, float time){
+void outputToFile(double4 *h_X, int bodyCount, float time){
     mkdir(RESULTS_FOLDER, 0777);
     FILE *fp;
     char filename[30];
@@ -30,7 +30,7 @@ void outputToFile(float4 *h_X, int bodyCount, float time){
         return;
     }
     for(int i =0; i<bodyCount; i++){
-        float4 bodyPositon = h_X[i];
+        double4 bodyPositon = h_X[i];
         fprintf(fp, "%f, %f, %f, %f\n", bodyPositon.x, bodyPositon.y, bodyPositon.z, bodyPositon.w);
     }
 }
@@ -48,9 +48,9 @@ int main(int argc, char* argv[]) {
     int n = atoi(argv[1]);
     int k = atoi(argv[2]);
 
-    float4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
+    double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
 
-    size_t size = k*sizeof(float4);
+    size_t size = k*sizeof(double4);
 
     HANDLE_ERROR(cudaMalloc((void **)&d_X, size));
     HANDLE_ERROR(cudaMalloc((void **)&d_A, size));
@@ -59,9 +59,9 @@ int main(int argc, char* argv[]) {
     HANDLE_ERROR(cudaMemset(d_A, 0, size));
     HANDLE_ERROR(cudaMemset(d_V, 0, size));
 
-    h_X = (float4 *)malloc(size);
-    h_A = (float4 *)malloc(size);
-    h_V = (float4 *)malloc(size);
+    h_X = (double4 *)malloc(size);
+    h_A = (double4 *)malloc(size);
+    h_V = (double4 *)malloc(size);
     memset(h_A, 0, size);
     memset(h_V, 0, size);
        
@@ -79,4 +79,7 @@ int main(int argc, char* argv[]) {
         //output positions to csv file
         outputToFile(h_X, n, step*TIME_STEP);
     }
+    free(h_X);
+    free(h_A);
+    free(h_V);
 }
