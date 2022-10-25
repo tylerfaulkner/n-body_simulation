@@ -4,9 +4,13 @@
 #include "nbody_kernel.cuh"
 #include "nbody_cpu.h"
 #include "nbody_init.cuh"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
 #define TIME_STEP 0.5
+#define RESULTS_FOLDER "results"
 
 //handle error macro 
 static void HandleError(cudaError_t err, const char *file,  int line ) { 
@@ -14,6 +18,22 @@ static void HandleError(cudaError_t err, const char *file,  int line ) {
             printf("%s in %s at line %d\n", cudaGetErrorString(err),  file, line ); 
         } 
 } 
+
+void outputToFile(float4 *h_X, int bodyCount, float time){
+    mkdir(RESULTS_FOLDER, 0777);
+    FILE *fp;
+    char filename[30];
+    sprintf(filename, "%s/%f.csv", RESULTS_FOLDER, time);
+    fp = fopen(filename, "w");
+    if (fp==NULL){
+        printf("Write Error occured");
+        return;
+    }
+    for(int i =0; i<bodyCount; i++){
+        float4 bodyPositon = h_X[i];
+        fprintf(fp, "%f, %f, %f, %f\n", bodyPositon.x, bodyPositon.y, bodyPositon.z, bodyPositon.w);
+    }
+}
 
 int main(int argc, char* argv[]) {
     if(argc > 3){
@@ -57,5 +77,6 @@ int main(int argc, char* argv[]) {
         calculate_velocity(h_A, h_V, n, TIME_STEP);
         calculate_position(h_X, h_V, n, TIME_STEP);
         //output positions to csv file
+        outputToFile(h_X, n, step*TIME_STEP);
     }
 }
