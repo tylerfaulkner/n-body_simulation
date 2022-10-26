@@ -10,7 +10,7 @@
 
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
 #define TIME_STEP 0.25
-#define RESULTS_FOLDER "results"
+#define RESULTS_FOLDER "results2"
 
 //handle error macro 
 static void HandleError(cudaError_t err, const char *file,  int line ) { 
@@ -53,15 +53,10 @@ int main(int argc, char* argv[]) {
     }
     int n = atoi(argv[1]);
     int k = atoi(argv[2]);
-
-    if(n>k){
-        printf("Amount of bodies cannot be greater than simulation steps.\n");
-        return 0;
-    }
-
+    
     double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
 
-    size_t size = k*sizeof(double4);
+    size_t size = n*sizeof(double4);
 
     HANDLE_ERROR(cudaMalloc((void **)&d_X, size));
     HANDLE_ERROR(cudaMalloc((void **)&d_A, size));
