@@ -99,7 +99,9 @@ int main(int argc, char* argv[]) {
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
-    printf("\nCPU implementation elapsed time: %f ms\n", cpu_time(&ts, &te));
+    float simTime = cpu_time(&ts, &te);
+    printf("\nCPU implementation elapsed time: %f ms\n", simTime);
+    printf("Single Step average execution time: %f ms\n", simTime/k);
 
     free(h_X);
     free(h_A);
