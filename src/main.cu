@@ -17,7 +17,13 @@ static void HandleError(cudaError_t err, const char *file,  int line ) {
         if (err != cudaSuccess) { 
             printf("%s in %s at line %d\n", cudaGetErrorString(err),  file, line ); 
         } 
-} 
+}
+
+// elapsed time in milliseconds
+float cpu_time(timespec* start, timespec* end){
+        return ((1e9*end->tv_sec + end->tv_nsec) - (1e9*start->tv_sec + start->tv_nsec))/1e6;
+}
+
 
 void outputToFile(double4 *h_X, int bodyCount, float time){
     mkdir(RESULTS_FOLDER, 0777);
@@ -37,16 +43,21 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
 
 int main(int argc, char* argv[]) {
     if(argc > 3){
-        printf("There are too many arguments");
+        printf("There are too many arguments.\n");
         return 0;
     }
 
     if(argc<3){
-        printf("Please provide the amount of bodies and simulation steps as a command line argument.");
+        printf("Please provide the amount of bodies and simulation steps as a command line argument.\n");
         return 0;
     }
     int n = atoi(argv[1]);
     int k = atoi(argv[2]);
+
+    if(n>k){
+        printf("Amount of bodies cannot be greater than simulation steps.\n");
+        return 0;
+    }
 
     double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
 
@@ -64,7 +75,11 @@ int main(int argc, char* argv[]) {
     h_V = (double4 *)malloc(size);
     memset(h_A, 0, size);
     memset(h_V, 0, size);
-       
+
+    timespec ts, te;
+    // Start benchmark
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+
     printf("Randomizing Body Start Positions...\n");
     srand(time(0));
     initializeBodies(h_X, n);
@@ -82,6 +97,10 @@ int main(int argc, char* argv[]) {
         //output positions to csv file
         outputToFile(h_X, n, step*TIME_STEP);
     }
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &te);
+    printf("\nCPU implementation elapsed time: %f ms\n", cpu_time(&ts, &te));
+
     free(h_X);
     free(h_A);
     free(h_V);
