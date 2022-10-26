@@ -77,8 +77,6 @@ int main(int argc, char* argv[]) {
     memset(h_V, 0, size);
 
     timespec ts, te;
-    // Start benchmark
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
 
     printf("Randomizing Body Start Positions...\n");
     srand(time(0));
@@ -86,12 +84,14 @@ int main(int argc, char* argv[]) {
 
     printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
 
+    // Start benchmark
+    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     for(int step=0; step<k; step++){
         if(step % 10 == 0){
             printf("Executing Step %d out of %d\n", step, k);
         }
         calculate_forces(h_X, h_A, n);
-        //calculate new positions (0.5 is the change in time. We are doing 1/2 a second for each step.)
+        //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
         calculate_velocity(h_A, h_V, n, TIME_STEP);
         calculate_position(h_X, h_V, n, TIME_STEP);
         //output positions to csv file
@@ -106,4 +106,7 @@ int main(int argc, char* argv[]) {
     free(h_X);
     free(h_A);
     free(h_V);
+    cudaFree(d_A);
+    cudaFree(d_V);
+    cudaFree(d_X);
 }
