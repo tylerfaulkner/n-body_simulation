@@ -9,7 +9,7 @@ To Build:
 3. make
 
 To Run:
-1. ./n-body_simulation <Number of bodies> <Number of steps>
+1. ./n-body_simulation \<Number of bodies\> \<Number of steps\>
 
 
 Authors:
