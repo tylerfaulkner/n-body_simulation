@@ -11,6 +11,7 @@
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
 #define TIME_STEP 0.25
 #define RESULTS_FOLDER "results"
+#define GPU_RESULTS_FOLDER "gpu_results"
 
 //handle error macro 
 static void HandleError(cudaError_t err, const char *file,  int line ) { 
@@ -25,11 +26,11 @@ float cpu_time(timespec* start, timespec* end){
 }
 
 
-void outputToFile(double4 *h_X, int bodyCount, float time){
-    mkdir(RESULTS_FOLDER, 0777);
+void outputToFile(double4 *h_X, int bodyCount, float time, char * folderName){
+    mkdir(folderName, 0777);
     FILE *fp;
     char filename[30];
-    sprintf(filename, "%s/%#.2f.csv", RESULTS_FOLDER, time);
+    sprintf(filename, "%s/%#.2f.csv", folderName, time);
     fp = fopen(filename, "w");
     if (fp==NULL){
         printf("Write Error occured");
@@ -61,7 +62,7 @@ int main(int argc, char* argv[]) {
 
     double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
 
-    size_t size = k*sizeof(double4);
+    size_t size = n*sizeof(double4);
 
     HANDLE_ERROR(cudaMalloc((void **)&d_X, size));
     HANDLE_ERROR(cudaMalloc((void **)&d_A, size));
@@ -94,14 +95,48 @@ int main(int argc, char* argv[]) {
         //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
         calculate_velocity(h_A, h_V, n, TIME_STEP);
         calculate_position(h_X, h_V, n, TIME_STEP);
+        // printf("CPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
         //output positions to csv file
-        outputToFile(h_X, n, step*TIME_STEP);
+        outputToFile(h_X, n, step*TIME_STEP, "results");
     }
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
     float simTime = cpu_time(&ts, &te);
     printf("\nCPU implementation elapsed time: %f ms\n", simTime);
     printf("Single Step average execution time: %f ms\n", simTime/k);
+
+
+    // Start GPU Implementation
+    printf("\nStarting GPU Implementation\n");
+    int threads_per_block = 32;//1024;
+    int block_in_grid = ceil( float(n) / threads_per_block);
+
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
+	cudaEventRecord(start);
+    for(int step=0; step<k; step++){
+        if(step % 10 == 0){
+            printf("Executing Step %d out of %d\n", step, k);
+        }
+        gpu_calculate_forces<<<block_in_grid, threads_per_block, 32*32*sizeof(double4)>>>(d_X, d_A, n);
+        HANDLE_ERROR(cudaMemcpy(h_X, d_X, n, cudaMemcpyDeviceToHost));
+
+        //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
+        calculate_velocity(h_A, h_V, n, TIME_STEP);
+        calculate_position(h_X, h_V, n, TIME_STEP);
+
+        // printf("GPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
+        outputToFile(h_X, n, step*TIME_STEP, "gpu_results");
+    }
+    cudaEventRecord(stop);
+
+    cudaEventSynchronize(stop);
+    float milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, start, stop);
+	printf("GPU Implementation Elapsed time: %f ms\n", milliseconds);
+    
 
     free(h_X);
     free(h_A);
