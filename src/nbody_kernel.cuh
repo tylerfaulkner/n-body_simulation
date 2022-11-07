@@ -59,3 +59,37 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
     globalA[gtid] = acc4;
 }
 
+/*
+Updates Velocity based on Computed Acceleration
+Leapfrog Integration
+*/
+__global__ void gpu_calculate_velocity(double4 *d_A, double4 *d_V, int bodyCount, double time)
+{
+    int currentBody = blockIdx.x * blockDim.x + threadIdx.x;
+    if (currentBody<bodyCount){ 
+        double3 vel = {0.0f, 0.0f, 0.0f};
+        vel.x = d_V[currentBody].x + d_A[currentBody].x * time;
+        vel.y = d_V[currentBody].y + d_A[currentBody].y * time;
+        vel.z = d_V[currentBody].z + d_A[currentBody].z * time;
+        double4 vel4 = {vel.x, vel.y, vel.z, 0.0f};
+        d_V[currentBody] = vel4;
+    }
+}
+
+/*
+Calculate Postion based on Velocity
+Leapfrog Integration
+*/
+__global__ void gpu_calculate_position(double4 *d_X, double4 *d_V, int bodyCount, double time)
+{
+    int currentBody = blockIdx.x * blockDim.x + threadIdx.x;
+    if (currentBody<bodyCount){ 
+        double4 currentPos = d_X[currentBody];
+        double4 pos = {0.0f, 0.0f, 0.0f, currentPos.w};
+        pos.x = currentPos.x + d_V[currentBody].x * time;
+        pos.y = currentPos.y + d_V[currentBody].y * time;
+        pos.z = currentPos.z + d_V[currentBody].z * time;
+        d_X[currentBody] = pos;
+    }
+}
+
