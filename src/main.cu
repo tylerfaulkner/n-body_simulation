@@ -41,6 +41,21 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
     }
 }
 
+void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outputResults){
+    for(int step=0; step<k; step++){
+        if(step % 10 == 0){
+            printf("Executing Step %d out of %d\n", step, k);
+        }
+        calculate_forces(h_X, h_A, n);
+        //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
+        calculate_velocity(h_A, h_V, n, TIME_STEP);
+        calculate_position(h_X, h_V, n, TIME_STEP);
+        //output positions to csv file
+        if (outputResults) 
+            outputToFile(h_X, n, step*TIME_STEP);
+    }
+}
+
 int main(int argc, char* argv[]) {
     if(argc > 3){
         printf("There are too many arguments.\n");
@@ -81,20 +96,9 @@ int main(int argc, char* argv[]) {
 
     // Start benchmark
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    for(int step=0; step<k; step++){
-        if(step % 10 == 0){
-            printf("Executing Step %d out of %d\n", step, k);
-        }
-        calculate_forces(h_X, h_A, n);
-        //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
-        calculate_velocity(h_A, h_V, n, TIME_STEP);
-        calculate_position(h_X, h_V, n, TIME_STEP);
-        // printf("CPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
-        //output positions to csv file
-        outputToFile(h_X, n, step*TIME_STEP);
-    }
-
+    cpuKernel(h_X, h_A, h_V, n, k, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
+
     float simTime = cpu_time(&ts, &te);
     printf("\nCPU implementation elapsed time: %f ms\n", simTime);
     printf("Single Step average execution time: %f ms\n", simTime/k);
