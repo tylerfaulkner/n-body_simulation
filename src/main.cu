@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
         calculate_position(h_X, h_V, n, TIME_STEP);
 
         // printf("GPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
-        outputToFile(h_X, n, step*TIME_STEP, "gpu_results");
+        outputToFile(h_X, n, step*TIME_STEP);
     }
     cudaEventRecord(stop);
 
