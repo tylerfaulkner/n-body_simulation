@@ -11,6 +11,7 @@
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
 #define TIME_STEP 0.25
 #define RESULTS_FOLDER "results"
+#define OUTPUT_TO_FILE false
 
 //handle error macro 
 static void HandleError(cudaError_t err, const char *file,  int line ) { 
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
 
     // Start benchmark
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    cpuKernel(h_X, h_A, h_V, n, k, true);
+    cpuKernel(h_X, h_A, h_V, n, k, OUTPUT_TO_FILE);
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
 
     float simTime = cpu_time(&ts, &te);
@@ -119,14 +120,14 @@ int main(int argc, char* argv[]) {
             printf("Executing Step %d out of %d\n", step, k);
         }
         gpu_calculate_forces<<<block_in_grid, threads_per_block, 32*32*sizeof(double4)>>>(d_X, d_A, n);
-        HANDLE_ERROR(cudaMemcpy(h_X, d_X, n, cudaMemcpyDeviceToHost));
+        gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, step*TIME_STEP);
+        gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_X, d_V, n, step*TIME_STEP);
 
-        //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
-        calculate_velocity(h_A, h_V, n, TIME_STEP);
-        calculate_position(h_X, h_V, n, TIME_STEP);
-
-        // printf("GPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
-        outputToFile(h_X, n, step*TIME_STEP);
+        if (OUTPUT_TO_FILE){
+            HANDLE_ERROR(cudaMemcpy(h_X, d_X, n, cudaMemcpyDeviceToHost));
+            // printf("GPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
+            outputToFile(h_X, n, step*TIME_STEP);
+        }
     }
     cudaEventRecord(stop);
 
