@@ -59,6 +59,17 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
     globalA[gtid] = acc4;
 }
 
+__global__ void tileless_gpu_calculate_velocity(double4 *d_X, double4 *d_A)
+{
+    double4 myPosition;
+    double3 acc = {0.0f, 0.0f, 0.0f};
+    int id = blockIdx.x * blockDim.x + threadIdx.x;
+    myPosition = d_X[id];
+    acc = bodyBodyInteraction(myPosition, d_X[id], acc);
+    double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
+    d_A[id] = acc4;
+}
+
 /*
 Updates Velocity based on Computed Acceleration
 Leapfrog Integration
