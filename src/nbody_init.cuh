@@ -8,12 +8,12 @@
 /*
 Intializes a random position and mass for every body in the system
 */
-void initializeBodies(double4 *h_X, int n) {
+void initializeBodies(float4 *h_X, int n) {
     for(int i=0; i<n; i++){
-        double xPos = (double)((rand() % MOD_DIM)-MAX_DIM);
-        double yPos = (double)((rand() % MOD_DIM)-MAX_DIM);
-        double zPos = (double)((rand() % MOD_DIM)-MAX_DIM);
-        double mass = (double)((rand() % MAX_MASS));
+        float xPos = (float)((rand() % MOD_DIM)-MAX_DIM);
+        float yPos = (float)((rand() % MOD_DIM)-MAX_DIM);
+        float zPos = (float)((rand() % MOD_DIM)-MAX_DIM);
+        float mass = (float)((rand() % MAX_MASS));
         h_X[i] = {xPos, yPos, zPos, mass};
     }
 }

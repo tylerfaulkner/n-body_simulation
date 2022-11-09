@@ -27,7 +27,7 @@ float cpu_time(timespec* start, timespec* end){
 }
 
 
-void outputToFile(double4 *h_X, int bodyCount, float time){
+void outputToFile(float4 *h_X, int bodyCount, float time){
     mkdir(RESULTS_FOLDER, 0777);
     FILE *fp;
     char filename[30];
@@ -38,12 +38,12 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
         return;
     }
     for(int i =0; i<bodyCount; i++){
-        double4 bodyPositon = h_X[i];
+        float4 bodyPositon = h_X[i];
         fprintf(fp, "%f, %f, %f, %f\n", bodyPositon.x, bodyPositon.y, bodyPositon.z, bodyPositon.w);
     }
 }
 
-void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outputResults){
+void cpuKernel(float4 *h_X, float4 *h_A, float4 *h_V, int n, int k, bool outputResults){
     for(int step=0; step<k; step++){
         calculate_forces(h_X, h_A, n);
         //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
@@ -55,13 +55,13 @@ void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outp
     }
 }
 
-void copyDoubleArray(double4 *h_destination, double4 *h_source, int elements){
+void copyfloatArray(float4 *h_destination, float4 *h_source, int elements){
     for (int i = 0; i < elements; i++){
         h_destination[i] = {h_source[i].x, h_source[i].y, h_source[i].z, h_source[i].w};
     }
 }
 
-void verifyOutput(double4 *h_X, double4 *h_XfromDevice, int n){
+void verifyOutput(float4 *h_X, float4 *h_XfromDevice, int n){
     for(int i = 0; i<n; i++){
         if (h_X[i].x != h_XfromDevice[i].x){
             printf("Device results do not equal CPU results for body %i\n", i);
@@ -83,9 +83,9 @@ int main(int argc, char* argv[]) {
     int n = atoi(argv[1]);
     int k = atoi(argv[2]);
     
-    double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V, *h_OriginalCopy;
+    float4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V, *h_OriginalCopy;
 
-    size_t size = n*sizeof(double4);
+    size_t size = n*sizeof(float4);
 
     HANDLE_ERROR(cudaMalloc((void **)&d_X, size));
     HANDLE_ERROR(cudaMalloc((void **)&d_A, size));
@@ -94,10 +94,10 @@ int main(int argc, char* argv[]) {
     HANDLE_ERROR(cudaMemset(d_A, 0, size));
     HANDLE_ERROR(cudaMemset(d_V, 0, size));
 
-    h_X = (double4 *)malloc(size);
-    h_A = (double4 *)malloc(size);
-    h_V = (double4 *)malloc(size);
-    h_OriginalCopy = (double4 *)malloc(size);
+    h_X = (float4 *)malloc(size);
+    h_A = (float4 *)malloc(size);
+    h_V = (float4 *)malloc(size);
+    h_OriginalCopy = (float4 *)malloc(size);
 
     memset(h_A, 0, size);
     memset(h_V, 0, size);
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
     printf("Randomizing Body Start Positions...\n");
     srand(time(0));
     initializeBodies(h_X, n);
-    copyDoubleArray(h_OriginalCopy, h_X, n);
+    copyfloatArray(h_OriginalCopy, h_X, n);
 
     //printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
 
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 
 	cudaEventRecord(start);
     for(int step=0; step<k; step++){
-        gpu_calculate_forces<<<block_in_grid, BLOCK_SIZE, BLOCK_SIZE*sizeof(double4)>>>(d_X, d_A, n);
+        gpu_calculate_forces<<<block_in_grid, BLOCK_SIZE, BLOCK_SIZE*sizeof(float4)>>>(d_X, d_A, n);
         cudaDeviceSynchronize();
         gpu_calculate_velocity<<<block_in_grid, BLOCK_SIZE>>>(d_A, d_V, n, TIME_STEP);
         cudaDeviceSynchronize();
@@ -148,9 +148,12 @@ int main(int argc, char* argv[]) {
 	cudaEventElapsedTime(&milliseconds, start, stop);
 	printf("GPU Implementation Elapsed time: %f ms\n", milliseconds);
 
-    double4 *d_Xnt;
+    float4 *d_Xnt;
     HANDLE_ERROR(cudaMalloc((void **)&d_Xnt, size));
     HANDLE_ERROR(cudaMemcpy(d_Xnt, h_OriginalCopy, size, cudaMemcpyHostToDevice));
+
+    cudaFree(d_V);
+    cudaMemset(d_V, 0, size);
 
     cudaEvent_t startNT, stopNT;
 	cudaEventCreate(&startNT);
@@ -172,11 +175,11 @@ int main(int argc, char* argv[]) {
 	cudaEventElapsedTime(&millisecondsNT, startNT, stopNT);
 	printf("GPU Non-Tiled Implementation Elapsed time: %f ms\n", millisecondsNT);
     
-    double4 *h_XfromDevice;
-    h_XfromDevice = (double4 *)malloc(size);
+    float4 *h_XfromDevice;
+    h_XfromDevice = (float4 *)malloc(size);
     HANDLE_ERROR(cudaMemcpy(h_XfromDevice, d_Xnt, size, cudaMemcpyDeviceToHost));
 
-    //verifyOutput(h_X, h_XfromDevice, n);
+    verifyOutput(h_X, h_XfromDevice, n);
 
     free(h_X);
     free(h_A);

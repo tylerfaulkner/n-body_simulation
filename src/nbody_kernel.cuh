@@ -5,20 +5,20 @@
 #define TILE_WIDTH 32
 
 
-__device__ double3 bodyBodyInteraction(double4 bi, double4 bj, double3 ai)
+__device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 {
-    double3 r;
+    float3 r;
     // r_ij [3 FLOPS]
     r.x = bj.x - bi.x;
     r.y = bj.y - bi.y;
     r.z = bj.z - bi.z;
     // distSqr = dot(r_ij, r_ij) + EPS^2 [6 FLOPS]
-    double distSqr = r.x * r.x + r.y * r.y + r.z * r.z + EPS2;
+    float distSqr = r.x * r.x + r.y * r.y + r.z * r.z + EPS2;
     // invDistCube =1/distSqr^(3/2) [4 FLOPS (2 mul, 1 sqrt, 1 inv)]
-    double distSixth = distSqr * distSqr * distSqr;
-    double invDistCube = 1.0f/sqrtf(distSixth);
+    float distSixth = distSqr * distSqr * distSqr;
+    float invDistCube = 1.0f/sqrtf(distSixth);
     // s = m_j * invDistCube [1 FLOP]
-    double s = bj.w * invDistCube;
+    float s = bj.w * invDistCube;
     // a_i = a_i + s * r_ij [6 FLOPS]
     ai.x += r.x * s;
     ai.y += r.y * s;
@@ -26,24 +26,24 @@ __device__ double3 bodyBodyInteraction(double4 bi, double4 bj, double3 ai)
     return ai;
 }
 
-__device__ double3 tile_calculation(double4 myPosition, double3 accel)
+__device__ float3 tile_calculation(float4 myPosition, float3 accel)
 {
     int i;
-    extern __shared__ double4 shPosition[];
+    extern __shared__ float4 shPosition[];
     for (i = 0; i < blockDim.x; i++) {
         accel = bodyBodyInteraction(myPosition, shPosition[i], accel); 
     }
     return accel;
 }
 
-__global__ void gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
+__global__ void gpu_calculate_forces(float4 *d_X, float4 *d_A, int n)
 {
-    extern __shared__ double4 shPosition[];
+    extern __shared__ float4 shPosition[];
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gtid < n){
-        double4 myPosition;
+        float4 myPosition;
         int i, tile;
-        double3 acc = {0.0f, 0.0f, 0.0f};
+        float3 acc = {0.0f, 0.0f, 0.0f};
         myPosition = d_X[gtid];
         //Tiling
         for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
@@ -54,22 +54,22 @@ __global__ void gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
             __syncthreads();
         }
         // Save the result in global memory for the integration step.
-        double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
+        float4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
         d_A[gtid] = acc4;
     }
 }
 
-__global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
+__global__ void tileless_gpu_calculate_forces(float4 *d_X, float4 *d_A, int n)
 {
     int id = blockIdx.x * blockDim.x + threadIdx.x;
     if (id < n){
-        double4 myPosition;
-        double3 acc = {0.0f, 0.0f, 0.0f};
+        float4 myPosition;
+        float3 acc = {0.0f, 0.0f, 0.0f};
         myPosition = d_X[id];
         for(int i=0; i<n; i++){
             acc = bodyBodyInteraction(myPosition, d_X[i], acc);
         }
-        double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
+        float4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
         d_A[id] = acc4;
     }
 }
@@ -78,15 +78,15 @@ __global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
 Updates Velocity based on Computed Acceleration
 Leapfrog Integration
 */
-__global__ void gpu_calculate_velocity(double4 *d_A, double4 *d_V, int bodyCount, double time)
+__global__ void gpu_calculate_velocity(float4 *d_A, float4 *d_V, int bodyCount, float time)
 {
     int currentBody = blockIdx.x * blockDim.x + threadIdx.x;
     if (currentBody<bodyCount){ 
-        double3 vel = {0.0f, 0.0f, 0.0f};
+        float3 vel = {0.0f, 0.0f, 0.0f};
         vel.x = d_V[currentBody].x + d_A[currentBody].x * time;
         vel.y = d_V[currentBody].y + d_A[currentBody].y * time;
         vel.z = d_V[currentBody].z + d_A[currentBody].z * time;
-        double4 vel4 = {vel.x, vel.y, vel.z, 0.0f};
+        float4 vel4 = {vel.x, vel.y, vel.z, 0.0f};
         d_V[currentBody] = vel4;
     }
 }
@@ -95,12 +95,12 @@ __global__ void gpu_calculate_velocity(double4 *d_A, double4 *d_V, int bodyCount
 Calculate Postion based on Velocity
 Leapfrog Integration
 */
-__global__ void gpu_calculate_position(double4 *d_X, double4 *d_V, int bodyCount, double time)
+__global__ void gpu_calculate_position(float4 *d_X, float4 *d_V, int bodyCount, float time)
 {
     int currentBody = blockIdx.x * blockDim.x + threadIdx.x;
     if (currentBody<bodyCount){ 
-        double4 currentPos = d_X[currentBody];
-        double4 pos = {0.0f, 0.0f, 0.0f, currentPos.w};
+        float4 currentPos = d_X[currentBody];
+        float4 pos = {0.0f, 0.0f, 0.0f, currentPos.w};
         pos.x = currentPos.x + d_V[currentBody].x * time;
         pos.y = currentPos.y + d_V[currentBody].y * time;
         pos.z = currentPos.z + d_V[currentBody].z * time;
