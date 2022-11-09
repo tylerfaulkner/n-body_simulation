@@ -4,3 +4,5 @@ src/CMakeCache.txt
 src/Makefile
 src/n-body_simulation
 src/results
+src/timeResults
+src/results2

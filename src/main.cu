@@ -45,7 +45,7 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
 void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outputResults){
     for(int step=0; step<k; step++){
         if(step % 10 == 0){
-            printf("Executing Step %d out of %d\n", step, k);
+            printf("Executing Step %d out of %d\r", step, k);
         }
         calculate_forces(h_X, h_A, n);
         //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
@@ -54,6 +54,12 @@ void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outp
         //output positions to csv file
         if (outputResults) 
             outputToFile(h_X, n, step*TIME_STEP);
+    }
+}
+
+void copyArray(double4 *h_destination, double4 *h_source, int elements){
+    for (int i = 0; i < elements; i++){
+        h_destination[i] = h_source[i];
     }
 }
 
@@ -70,7 +76,7 @@ int main(int argc, char* argv[]) {
     int n = atoi(argv[1]);
     int k = atoi(argv[2]);
     
-    double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V;
+    double4 *d_A, *d_X, *d_V, *h_X, *h_A, *h_V, *h_OriginalCopy;
 
     size_t size = n*sizeof(double4);
 
@@ -84,6 +90,8 @@ int main(int argc, char* argv[]) {
     h_X = (double4 *)malloc(size);
     h_A = (double4 *)malloc(size);
     h_V = (double4 *)malloc(size);
+    h_OriginalCopy = (double4 *)malloc(size);
+
     memset(h_A, 0, size);
     memset(h_V, 0, size);
 
@@ -92,8 +100,9 @@ int main(int argc, char* argv[]) {
     printf("Randomizing Body Start Positions...\n");
     srand(time(0));
     initializeBodies(h_X, n);
+    copyArray(h_OriginalCopy, h_X, n);
 
-    printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
+    //printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
 
     // Start benchmark
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
@@ -102,13 +111,15 @@ int main(int argc, char* argv[]) {
 
     float simTime = cpu_time(&ts, &te);
     printf("\nCPU implementation elapsed time: %f ms\n", simTime);
-    printf("Single Step average execution time: %f ms\n", simTime/k);
+    //printf("Single Step average execution time: %f ms\n", simTime/k);
 
 
     // Start GPU Implementation
     printf("\nStarting GPU Implementation\n");
     int threads_per_block = 32;//1024;
     int block_in_grid = ceil( float(n) / threads_per_block);
+
+    HANDLE_ERROR(cudaMemcpy(d_X, h_OriginalCopy, size, cudaMemcpyHostToDevice));
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -117,7 +128,7 @@ int main(int argc, char* argv[]) {
 	cudaEventRecord(start);
     for(int step=0; step<k; step++){
         if(step % 10 == 0){
-            printf("Executing Step %d out of %d\n", step, k);
+            printf("Executing Step %d out of %d\r", step, k);
         }
         gpu_calculate_forces<<<block_in_grid, threads_per_block, 32*32*sizeof(double4)>>>(d_X, d_A, n);
         gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, step*TIME_STEP);
