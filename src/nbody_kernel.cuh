@@ -45,18 +45,20 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
     int i, tile;
     double3 acc = {0.0f, 0.0f, 0.0f};
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
-    myPosition = globalX[gtid];
-    //Tiling
-    for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
-        int idx = tile * blockDim.x + threadIdx.x;
-        shPosition[threadIdx.x] = globalX[idx];
-        __syncthreads();
-        acc = tile_calculation(myPosition, acc);
-        __syncthreads();
+    if(gtid < n){
+        myPosition = globalX[gtid];
+        //Tiling
+        for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
+            int idx = tile * blockDim.x + threadIdx.x;
+            shPosition[threadIdx.x] = globalX[idx];
+            __syncthreads();
+            acc = tile_calculation(myPosition, acc);
+            __syncthreads();
+        }
+        // Save the result in global memory for the integration step.
+        double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
+        globalA[gtid] = acc4;
     }
-    // Save the result in global memory for the integration step.
-    double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
-    globalA[gtid] = acc4;
 }
 
 __global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
@@ -65,9 +67,10 @@ __global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
     double3 acc = {0.0f, 0.0f, 0.0f};
     int id = blockIdx.x * blockDim.x + threadIdx.x;
     myPosition = d_X[id];
-
-    for(int i=0; i<n; i++){
-        acc = bodyBodyInteraction(myPosition, d_X[i], acc);
+    if (id < n){
+        for(int i=0; i<n; i++){
+            acc = bodyBodyInteraction(myPosition, d_X[i], acc);
+        }
     }
     double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
     d_A[id] = acc4;
