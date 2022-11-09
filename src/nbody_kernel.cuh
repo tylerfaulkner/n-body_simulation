@@ -47,7 +47,7 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
     myPosition = globalX[gtid];
     //Tiling
-    for (i = 0, tile = 0; i < n; i += TILE_WIDTH, tile++) {
+    for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
         int idx = tile * blockDim.x + threadIdx.x;
         shPosition[threadIdx.x] = globalX[idx];
         __syncthreads();
@@ -59,13 +59,16 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
     globalA[gtid] = acc4;
 }
 
-__global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A)
+__global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
 {
     double4 myPosition;
     double3 acc = {0.0f, 0.0f, 0.0f};
     int id = blockIdx.x * blockDim.x + threadIdx.x;
     myPosition = d_X[id];
-    acc = bodyBodyInteraction(myPosition, d_X[id], acc);
+
+    for(int i=0; i<n; i++){
+        acc = bodyBodyInteraction(myPosition, d_X[i], acc);
+    }
     double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
     d_A[id] = acc4;
 }

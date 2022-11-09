@@ -44,9 +44,6 @@ void outputToFile(double4 *h_X, int bodyCount, float time){
 
 void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outputResults){
     for(int step=0; step<k; step++){
-        if(step % 10 == 0){
-            printf("Executing Step %d out of %d\r", step, k);
-        }
         calculate_forces(h_X, h_A, n);
         //calculate new positions (0.25 is the change in time. We are doing 1/4 a second for each step.)
         calculate_velocity(h_A, h_V, n, TIME_STEP);
@@ -57,9 +54,18 @@ void cpuKernel(double4 *h_X, double4 *h_A, double4 *h_V, int n, int k, bool outp
     }
 }
 
-void copyArray(double4 *h_destination, double4 *h_source, int elements){
+void copyDoubleArray(double4 *h_destination, double4 *h_source, int elements){
     for (int i = 0; i < elements; i++){
-        h_destination[i] = h_source[i];
+        h_destination[i] = {h_source[i].x, h_source[i].y, h_source[i].z, h_source[i].w};
+    }
+}
+
+void verifyOutput(double4 *h_X, double4 *h_XfromDevice, int n){
+    for(int i = 0; i<n; i++){
+        if (h_X[i].x != h_XfromDevice[i].x){
+            printf("Device results do not equal CPU results for body %i\n", i);
+            printf("%lf != %lf\n", h_X[i].x, h_XfromDevice[i].x);
+        }
     }
 }
 
@@ -100,7 +106,7 @@ int main(int argc, char* argv[]) {
     printf("Randomizing Body Start Positions...\n");
     srand(time(0));
     initializeBodies(h_X, n);
-    copyArray(h_OriginalCopy, h_X, n);
+    copyDoubleArray(h_OriginalCopy, h_X, n);
 
     //printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
 
@@ -116,7 +122,7 @@ int main(int argc, char* argv[]) {
 
     // Start GPU Implementation
     printf("\nStarting GPU Implementation\n");
-    int threads_per_block = 32;//1024;
+    int threads_per_block = 32;
     int block_in_grid = ceil( float(n) / threads_per_block);
 
     HANDLE_ERROR(cudaMemcpy(d_X, h_OriginalCopy, size, cudaMemcpyHostToDevice));
@@ -127,18 +133,9 @@ int main(int argc, char* argv[]) {
 
 	cudaEventRecord(start);
     for(int step=0; step<k; step++){
-        if(step % 10 == 0){
-            printf("Executing Step %d out of %d\r", step, k);
-        }
         gpu_calculate_forces<<<block_in_grid, threads_per_block, 32*32*sizeof(double4)>>>(d_X, d_A, n);
-        gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, step*TIME_STEP);
-        gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_X, d_V, n, step*TIME_STEP);
-
-        if (OUTPUT_TO_FILE){
-            HANDLE_ERROR(cudaMemcpy(h_X, d_X, n, cudaMemcpyDeviceToHost));
-            // printf("GPU TESTING %f, %f, %f\n", h_X[0].x, h_X[0].y, h_X[0].z);
-            outputToFile(h_X, n, step*TIME_STEP);
-        }
+        gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, TIME_STEP);
+        gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_X, d_V, n, TIME_STEP);
     }
     cudaEventRecord(stop);
 
@@ -146,7 +143,33 @@ int main(int argc, char* argv[]) {
     float milliseconds = 0;
 	cudaEventElapsedTime(&milliseconds, start, stop);
 	printf("GPU Implementation Elapsed time: %f ms\n", milliseconds);
+
+    double4 *d_Xnt;
+    HANDLE_ERROR(cudaMalloc((void **)&d_Xnt, size));
+    HANDLE_ERROR(cudaMemcpy(d_Xnt, h_OriginalCopy, size, cudaMemcpyHostToDevice));
+
+    cudaEvent_t startNT, stopNT;
+	cudaEventCreate(&startNT);
+	cudaEventCreate(&stopNT);
+
+    cudaEventRecord(startNT);
+    for(int step=0; step<k; step++){
+        tileless_gpu_calculate_forces<<<block_in_grid, threads_per_block>>>(d_Xnt, d_A, n);
+        gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, TIME_STEP);
+        gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_Xnt, d_V, n, TIME_STEP);
+    }
+    cudaEventRecord(stopNT);
+
+    cudaEventSynchronize(stopNT);
+    float millisecondsNT = 0;
+	cudaEventElapsedTime(&millisecondsNT, startNT, stopNT);
+	printf("GPU Non-Tiled Implementation Elapsed time: %f ms\n", millisecondsNT);
     
+    double4 *h_XfromDevice;
+    h_XfromDevice = (double4 *)malloc(size);
+    HANDLE_ERROR(cudaMemcpy(h_XfromDevice, d_Xnt, size, cudaMemcpyDeviceToHost));
+
+    //verifyOutput(h_X, h_XfromDevice, n);
 
     free(h_X);
     free(h_A);
