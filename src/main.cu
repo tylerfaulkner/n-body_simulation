@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
 
     // Start GPU Implementation
     printf("\nStarting GPU Implementation\n");
-    int block_in_grid = ceil( float(n) / BLOCK_SIZE);
+    int block_in_grid = (int)ceil( (float)n / BLOCK_SIZE);
 
     HANDLE_ERROR(cudaMemcpy(d_X, h_OriginalCopy, size, cudaMemcpyHostToDevice));
 

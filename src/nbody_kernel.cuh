@@ -36,28 +36,26 @@ __device__ double3 tile_calculation(double4 myPosition, double3 accel)
     return accel;
 }
 
-__global__ void gpu_calculate_forces(void *devX, void *devA, int n)
+__global__ void gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
 {
     extern __shared__ double4 shPosition[];
-    double4 *globalX = (double4 *)devX;
-    double4 *globalA = (double4 *)devA;
-    double4 myPosition;
-    int i, tile;
-    double3 acc = {0.0f, 0.0f, 0.0f};
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gtid < n){
-        myPosition = globalX[gtid];
+        double4 myPosition;
+        int i, tile;
+        double3 acc = {0.0f, 0.0f, 0.0f};
+        myPosition = d_X[gtid];
         //Tiling
         for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
             int idx = tile * blockDim.x + threadIdx.x;
-            shPosition[threadIdx.x] = globalX[idx];
+            shPosition[threadIdx.x] = d_X[idx];
             __syncthreads();
             acc = tile_calculation(myPosition, acc);
             __syncthreads();
         }
         // Save the result in global memory for the integration step.
         double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
-        globalA[gtid] = acc4;
+        d_A[gtid] = acc4;
     }
 }
 
