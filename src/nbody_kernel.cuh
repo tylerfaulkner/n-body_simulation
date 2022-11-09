@@ -71,9 +71,9 @@ __global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
         for(int i=0; i<n; i++){
             acc = bodyBodyInteraction(myPosition, d_X[i], acc);
         }
+        double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
+        d_A[id] = acc4;
     }
-    double4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
-    d_A[id] = acc4;
 }
 
 /*

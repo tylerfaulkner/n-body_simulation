@@ -111,6 +111,7 @@ int main(int argc, char* argv[]) {
     //printf("Verifying Randomization:\n\tx:%lf, y:%lf, z:%lf, w:%lf\n", h_X[0].x,h_X[0].y,h_X[0].z,h_X[0].w);
 
     // Start benchmark
+    printf("Starting CPU Kernel...");
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     cpuKernel(h_X, h_A, h_V, n, k, OUTPUT_TO_FILE);
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
@@ -122,7 +123,7 @@ int main(int argc, char* argv[]) {
 
     // Start GPU Implementation
     printf("\nStarting GPU Implementation\n");
-    int threads_per_block = 32;
+    int threads_per_block = 512;
     int block_in_grid = ceil( float(n) / threads_per_block);
 
     HANDLE_ERROR(cudaMemcpy(d_X, h_OriginalCopy, size, cudaMemcpyHostToDevice));
@@ -133,7 +134,7 @@ int main(int argc, char* argv[]) {
 
 	cudaEventRecord(start);
     for(int step=0; step<k; step++){
-        gpu_calculate_forces<<<block_in_grid, threads_per_block, 32*32*sizeof(double4)>>>(d_X, d_A, n);
+        gpu_calculate_forces<<<block_in_grid, threads_per_block, threads_per_block*sizeof(double4)>>>(d_X, d_A, n);
         gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, TIME_STEP);
         gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_X, d_V, n, TIME_STEP);
     }
