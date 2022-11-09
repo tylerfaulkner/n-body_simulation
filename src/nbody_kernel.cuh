@@ -59,7 +59,7 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
     globalA[gtid] = acc4;
 }
 
-__global__ void tileless_gpu_calculate_velocity(double4 *d_X, double4 *d_A)
+__global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A)
 {
     double4 myPosition;
     double3 acc = {0.0f, 0.0f, 0.0f};
