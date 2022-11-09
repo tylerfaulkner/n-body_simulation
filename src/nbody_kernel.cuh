@@ -63,11 +63,11 @@ __global__ void gpu_calculate_forces(void *devX, void *devA, int n)
 
 __global__ void tileless_gpu_calculate_forces(double4 *d_X, double4 *d_A, int n)
 {
-    double4 myPosition;
-    double3 acc = {0.0f, 0.0f, 0.0f};
     int id = blockIdx.x * blockDim.x + threadIdx.x;
-    myPosition = d_X[id];
     if (id < n){
+        double4 myPosition;
+        double3 acc = {0.0f, 0.0f, 0.0f};
+        myPosition = d_X[id];
         for(int i=0; i<n; i++){
             acc = bodyBodyInteraction(myPosition, d_X[i], acc);
         }

@@ -12,6 +12,7 @@
 #define TIME_STEP 0.25
 #define RESULTS_FOLDER "results"
 #define OUTPUT_TO_FILE false
+#define BLOCK_SIZE 1024
 
 //handle error macro 
 static void HandleError(cudaError_t err, const char *file,  int line ) { 
@@ -123,8 +124,7 @@ int main(int argc, char* argv[]) {
 
     // Start GPU Implementation
     printf("\nStarting GPU Implementation\n");
-    int threads_per_block = 512;
-    int block_in_grid = ceil( float(n) / threads_per_block);
+    int block_in_grid = ceil( float(n) / BLOCK_SIZE);
 
     HANDLE_ERROR(cudaMemcpy(d_X, h_OriginalCopy, size, cudaMemcpyHostToDevice));
 
@@ -134,9 +134,12 @@ int main(int argc, char* argv[]) {
 
 	cudaEventRecord(start);
     for(int step=0; step<k; step++){
-        gpu_calculate_forces<<<block_in_grid, threads_per_block, threads_per_block*sizeof(double4)>>>(d_X, d_A, n);
-        gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, TIME_STEP);
-        gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_X, d_V, n, TIME_STEP);
+        gpu_calculate_forces<<<block_in_grid, BLOCK_SIZE, BLOCK_SIZE*sizeof(double4)>>>(d_X, d_A, n);
+        cudaDeviceSynchronize();
+        gpu_calculate_velocity<<<block_in_grid, BLOCK_SIZE>>>(d_A, d_V, n, TIME_STEP);
+        cudaDeviceSynchronize();
+        gpu_calculate_position<<<block_in_grid, BLOCK_SIZE>>>(d_X, d_V, n, TIME_STEP);
+        cudaDeviceSynchronize();
     }
     cudaEventRecord(stop);
 
@@ -155,9 +158,12 @@ int main(int argc, char* argv[]) {
 
     cudaEventRecord(startNT);
     for(int step=0; step<k; step++){
-        tileless_gpu_calculate_forces<<<block_in_grid, threads_per_block>>>(d_Xnt, d_A, n);
-        gpu_calculate_velocity<<<block_in_grid, threads_per_block>>>(d_A, d_V, n, TIME_STEP);
-        gpu_calculate_position<<<block_in_grid, threads_per_block>>>(d_Xnt, d_V, n, TIME_STEP);
+        tileless_gpu_calculate_forces<<<block_in_grid, BLOCK_SIZE>>>(d_Xnt, d_A, n);
+        cudaDeviceSynchronize();
+        gpu_calculate_velocity<<<block_in_grid, BLOCK_SIZE>>>(d_A, d_V, n, TIME_STEP);
+        cudaDeviceSynchronize();
+        gpu_calculate_position<<<block_in_grid, BLOCK_SIZE>>>(d_Xnt, d_V, n, TIME_STEP);
+        cudaDeviceSynchronize();
     }
     cudaEventRecord(stopNT);
 
