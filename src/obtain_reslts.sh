@@ -27,8 +27,8 @@ do
             echo -n "," >> $nt_file
         fi
         echo -n "${results[0]}" >> $cpu_file
-        echo -n "${results[1]}" >> $nt_file
-        echo -n "${results[2]}" >> $gpu_file
+        echo -n "${results[2]}" >> $nt_file
+        echo -n "${results[1]}" >> $gpu_file
     done
     cat $cpu_file >> $end_file
     echo -ne "\n" >> $end_file
