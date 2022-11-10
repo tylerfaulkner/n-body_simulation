@@ -2,10 +2,8 @@
 #include <stdlib.h>
 
 #define EPS2 0.01 //dampening factor in textbook
-#define TILE_WIDTH 32
 
-
-__device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
+__device__ __host__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 {
     float3 r;
     // r_ij [3 FLOPS]
@@ -26,36 +24,43 @@ __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
     return ai;
 }
 
-__device__ float3 tile_calculation(float4 myPosition, float3 accel)
+__device__ float3 tile_calculation(float4 myPosition, float3 accel, int bodiesLeft)
 {
     int i;
     extern __shared__ float4 shPosition[];
-    for (i = 0; i < blockDim.x; i++) {
+    for (i = 0; i < blockDim.x && i < bodiesLeft; i++) {
         accel = bodyBodyInteraction(myPosition, shPosition[i], accel); 
     }
     return accel;
 }
 
-__global__ void gpu_calculate_forces(float4 *d_X, float4 *d_A, int n)
+__global__ void gpu_calculate_forces(void *d_X, void *d_A, int n)
 {
     extern __shared__ float4 shPosition[];
+    float4 *globalX = (float4 *)d_X;
+    float4 *globalA = (float4 *)d_A;
+    float4 myPosition;
+    int i, tile;
+    float3 acc = {0.0f, 0.0f, 0.0f};
+    
     int gtid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gtid < n){
-        float4 myPosition;
-        int i, tile;
-        float3 acc = {0.0f, 0.0f, 0.0f};
-        myPosition = d_X[gtid];
-        //Tiling
-        for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
-            int idx = tile * blockDim.x + threadIdx.x;
-            shPosition[threadIdx.x] = d_X[idx];
-            __syncthreads();
-            acc = tile_calculation(myPosition, acc);
-            __syncthreads();
+    //Tiling
+    for (i = 0, tile = 0; i < n; i += blockDim.x, tile++) {
+        int idx = tile * blockDim.x + threadIdx.x;
+        if(idx < n){
+            shPosition[threadIdx.x] = globalX[idx];
         }
-        // Save the result in global memory for the integration step.
+        __syncthreads();
+        if(gtid < n){
+            myPosition = globalX[gtid];
+            acc = tile_calculation(myPosition, acc, n-i);
+        }
+        __syncthreads();
+    }
+    // Save the result in global memory for the integration step.
+    if(gtid < n){
         float4 acc4 = {acc.x, acc.y, acc.z, 0.0f};
-        d_A[gtid] = acc4;
+        globalA[gtid] = acc4;
     }
 }
 
@@ -63,9 +68,8 @@ __global__ void tileless_gpu_calculate_forces(float4 *d_X, float4 *d_A, int n)
 {
     int id = blockIdx.x * blockDim.x + threadIdx.x;
     if (id < n){
-        float4 myPosition;
+        float4 myPosition = d_X[id];
         float3 acc = {0.0f, 0.0f, 0.0f};
-        myPosition = d_X[id];
         for(int i=0; i<n; i++){
             acc = bodyBodyInteraction(myPosition, d_X[i], acc);
         }
