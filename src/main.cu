@@ -62,12 +62,23 @@ void copyfloatArray(float4 *h_destination, float4 *h_source, int elements){
 }
 
 void verifyOutput(float4 *h_X, float4 *h_XfromDevice, int n){
+    float accuracies[n];
     for(int i = 0; i<n; i++){
-        if (h_X[i].x != h_XfromDevice[i].x){
-            printf("Device results do not equal CPU results for body %i\n", i);
-            printf("%lf != %lf\n", h_X[i].x, h_XfromDevice[i].x);
-        }
+        float4 expected = h_X[i];
+        float4 actual = h_XfromDevice[i];
+        float x = pow(actual.x - expected.x, 2);
+        float y = pow(actual.y - expected.y, 2);
+        float z = pow(actual.z - expected.z, 2);
+        float accuracy = sqrtf(x+y+z);
+        accuracies[i] = accuracy;
     }
+    float final_accuarcy;
+    float sum = 0;
+    for(int i=0; i<n;i++){
+        sum += accuracies[i];
+    }
+    final_accuarcy = (sum/n);
+    printf("The final posiitons were on average %f units off\n", final_accuarcy);
 }
 
 int main(int argc, char* argv[]) {
@@ -148,12 +159,17 @@ int main(int argc, char* argv[]) {
 	cudaEventElapsedTime(&milliseconds, start, stop);
 	printf("GPU Implementation Elapsed time: %f ms\n", milliseconds);
 
+    float4 *h_XfromDevice;
+    h_XfromDevice = (float4 *)malloc(size);
+    HANDLE_ERROR(cudaMemcpy(h_XfromDevice, d_X, size, cudaMemcpyDeviceToHost));
+
+    verifyOutput(h_X, h_XfromDevice, n);
+
     float4 *d_Xnt;
     HANDLE_ERROR(cudaMalloc((void **)&d_Xnt, size));
     HANDLE_ERROR(cudaMemcpy(d_Xnt, h_OriginalCopy, size, cudaMemcpyHostToDevice));
 
-    cudaFree(d_V);
-    cudaMemset(d_V, 0, size);
+    HANDLE_ERROR(cudaMemset(d_V, 0, size));
 
     cudaEvent_t startNT, stopNT;
 	cudaEventCreate(&startNT);
@@ -174,11 +190,8 @@ int main(int argc, char* argv[]) {
     float millisecondsNT = 0;
 	cudaEventElapsedTime(&millisecondsNT, startNT, stopNT);
 	printf("GPU Non-Tiled Implementation Elapsed time: %f ms\n", millisecondsNT);
-    
-    float4 *h_XfromDevice;
-    h_XfromDevice = (float4 *)malloc(size);
-    HANDLE_ERROR(cudaMemcpy(h_XfromDevice, d_Xnt, size, cudaMemcpyDeviceToHost));
 
+    HANDLE_ERROR(cudaMemcpy(h_XfromDevice, d_Xnt, size, cudaMemcpyDeviceToHost));
     verifyOutput(h_X, h_XfromDevice, n);
 
     free(h_X);
