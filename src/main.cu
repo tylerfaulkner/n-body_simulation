@@ -78,7 +78,7 @@ void verifyOutput(float4 *h_X, float4 *h_XfromDevice, int n){
         sum += accuracies[i];
     }
     final_accuarcy = (sum/n);
-    printf("The final posiitons were on average %f units off\n", final_accuarcy);
+    printf("The final positions were on average %f units off\n", final_accuarcy);
 }
 
 int main(int argc, char* argv[]) {
@@ -191,9 +191,8 @@ int main(int argc, char* argv[]) {
 	cudaEventElapsedTime(&millisecondsNT, startNT, stopNT);
 	printf("GPU Non-Tiled Implementation Elapsed time: %f ms\n", millisecondsNT);
 
-    HANDLE_ERROR(cudaMemcpy(h_XfromDevice, d_Xnt, size, cudaMemcpyDeviceToHost));
-    verifyOutput(h_X, h_XfromDevice, n);
-
+    free(h_OriginalCopy);
+    free(h_XfromDevice);
     free(h_X);
     free(h_A);
     free(h_V);
